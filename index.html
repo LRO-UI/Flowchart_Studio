@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flowchart studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='7' y='7' width='18' height='18' transform='rotate(45 16 16)' fill='%233f6fa8' stroke='%23e7eaf0' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Playfair+Display:wght@400..900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    color-scheme:dark;
+    --bg:#0d0f14; --panel:#14171f; --panel-edge:#232732;
+    --blue:#3f6fa8; --blue2:#5c7f9e; --steel:#7c8698;
+    --ink:#e7eaf0; --ink-soft:#727c8c; --line:#252a35;
+    --danger:#c77a7a; --ok:#7fa88a;
+    --font-ui:'Space Grotesk', system-ui, sans-serif;
+    --font-display:'Playfair Display', Georgia, serif;
+  }
+  html{ scroll-padding-top:env(safe-area-inset-top,0px); height:100%; }
+  *{ box-sizing:border-box; }
+  [hidden]{ display:none !important; }
+  body{
+    margin:0; height:100%; background:var(--bg); color:var(--ink);
+    font-family:var(--font-ui); display:flex; flex-direction:column; overflow:hidden;
+  }
+  header{
+    padding:18px 30px; border-bottom:4px double var(--blue2);
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap; flex:none;
+  }
+  header h1{
+    margin:0; font-family:var(--font-display); font-weight:800;
+    font-size:1.5rem; letter-spacing:.02em;
+  }
+  .count{ font-size:.72rem; color:var(--blue2); letter-spacing:.06em; font-variant-numeric:tabular-nums; }
+  .head-actions{ margin-left:auto; display:flex; gap:10px; }
+  .head-actions button{ min-width:132px; }
+
+  .app{ display:flex; flex:1; min-height:0; }
+
+  /* Stage */
+  .stage{ flex:1 1 auto; min-width:0; padding:26px; display:flex; border-right:1px solid var(--line); }
+  .rail-frame{ position:relative; flex:1; display:flex; min-width:0; min-height:0; }
+  .rail-frame::before, .rail-frame::after{ content:''; position:absolute; pointer-events:none; z-index:2; }
+  .rail-frame::before{ inset:8px; border:1px solid rgba(231,234,240,.6); }
+  .rail-frame::after{ inset:13px; border:1px solid rgba(92,127,158,.35); }
+  .rail-d{
+    position:absolute; width:10px; height:10px; z-index:3;
+    background:var(--blue); border:2px solid var(--bg);
+    transform:translate(-50%,-50%) rotate(45deg);
+    box-shadow:0 0 0 1px rgba(231,234,240,.5);
+  }
+  .rail-d.tl{top:8px; left:8px;} .rail-d.tr{top:8px; left:calc(100% - 8px);}
+  .rail-d.bl{top:calc(100% - 8px); left:8px;} .rail-d.br{top:calc(100% - 8px); left:calc(100% - 8px);}
+
+  .canvas-wrap{
+    position:absolute; inset:20px; overflow:hidden; z-index:1;
+    background-color:var(--bg);
+    background-image:radial-gradient(circle, #262b37 1px, transparent 1.3px);
+    background-size:20px 20px; touch-action:none;
+  }
+  #svg{ width:100%; height:100%; display:block; user-select:none; -webkit-user-select:none; }
+  #svg.panning{ cursor:grabbing; }
+  #svg .node{ cursor:move; }
+  #svg .edge{ cursor:pointer; }
+  #svg .port{ opacity:0; cursor:crosshair; transition:opacity .12s; }
+  #svg .node:hover .port, #svg .node.sel .port{ opacity:1; }
+  #svg.connecting .port{ opacity:.45; }
+  #svg .handle{ cursor:nwse-resize; }
+  @media (hover:none){ #svg .node .port{ opacity:.55; } }
+
+  .empty-state{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:16px; text-align:center; padding:30px; pointer-events:none;
+  }
+  .empty-state p{ margin:0; max-width:34ch; font-size:.9rem; line-height:1.55; color:var(--ink-soft); }
+  .empty-state p strong{ color:var(--ink); font-weight:500; }
+  .empty-state button{ pointer-events:auto; min-width:180px; }
+
+  .zoombar{
+    position:absolute; left:12px; bottom:12px; display:flex; gap:4px; align-items:center;
+    background:var(--panel); border:1px solid var(--line); padding:4px;
+    box-shadow:inset 0 0 0 3px var(--panel), inset 0 0 0 4px var(--panel-edge);
+  }
+  .zoombar button{
+    background:transparent; border:1px solid transparent; color:var(--ink-soft);
+    font-family:var(--font-ui); font-size:.72rem; letter-spacing:.06em; padding:6px 9px; cursor:pointer; min-width:30px;
+  }
+  .zoombar button:hover{ color:var(--ink); border-color:var(--blue2); }
+  .zoombar button:disabled{ opacity:.35; cursor:not-allowed; border-color:transparent; }
+  .zoombar button:focus-visible{ outline:1px solid #fff; outline-offset:1px; }
+  .zoombar .pct{ font-size:.7rem; color:var(--blue2); min-width:42px; text-align:center; font-variant-numeric:tabular-nums; }
+  .zoombar .sep{ width:1px; height:18px; background:var(--line); margin:0 2px; }
+
+  .toast{
+    position:absolute; left:50%; bottom:14px; transform:translateX(-50%);
+    background:var(--panel); border:1px solid var(--blue2); color:var(--ink);
+    font-size:.74rem; letter-spacing:.03em; padding:9px 14px; max-width:80%;
+    opacity:0; pointer-events:none; transition:opacity .2s;
+  }
+  .toast.show{ opacity:1; }
+  .toast.err{ border-color:var(--danger); color:#e3b4b4; }
+
+  .inline-edit{
+    position:absolute; z-index:5; resize:none; overflow:hidden;
+    background:rgba(13,15,20,.92); color:var(--ink); border:1px solid var(--blue);
+    font-family:var(--font-ui); font-weight:500; text-align:center; line-height:1.3; padding:4px; outline:none;
+  }
+
+  /* Inspector */
+  .inspector{
+    position:absolute; top:12px; right:12px; width:262px; max-height:calc(100% - 24px); overflow:auto;
+    background:var(--panel); border:1px solid var(--line); padding:16px 16px 14px;
+    box-shadow:inset 0 0 0 3px var(--panel), inset 0 0 0 4px var(--panel-edge);
+    z-index:4;
+  }
+  .insp-head{ display:flex; align-items:flex-start; gap:8px; }
+  .insp-head .group-title{ flex:1; }
+  .x{
+    background:transparent; border:1px solid var(--line); color:var(--ink-soft); cursor:pointer;
+    width:24px; height:24px; line-height:1; font-size:.9rem; margin-top:-5px; flex:none;
+  }
+  .x:hover{ color:var(--ink); border-color:var(--blue2); }
+  .x:focus-visible{ outline:1px solid #fff; outline-offset:2px; }
+  .fld{ display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .fld > span, .fld label > span{ font-size:.7rem; color:var(--ink-soft); letter-spacing:.04em; }
+  .fld.two{ flex-direction:row; gap:8px; }
+  .fld.two label{ flex:1; display:flex; flex-direction:column; gap:6px; }
+  .fld input, .fld select, .fld textarea{
+    width:100%; background:var(--bg); border:1px solid var(--line); color:var(--ink);
+    font-family:var(--font-ui); font-size:.82rem; padding:7px 8px; border-radius:0; outline:none;
+  }
+  .fld textarea{ resize:vertical; min-height:52px; line-height:1.4; }
+  .fld input:focus, .fld select:focus, .fld textarea:focus{ border-color:var(--blue2); }
+  .fld select option, .fld select optgroup{ background:var(--panel); color:var(--ink); }
+  .meaning{ font-size:.74rem; line-height:1.5; color:var(--ink-soft); margin:2px 0 14px; padding-top:12px; border-top:1px solid var(--line); }
+  .link{
+    background:none; border:none; padding:0; color:var(--blue2); font:inherit; cursor:pointer;
+    text-decoration:underline; text-underline-offset:3px;
+  }
+  .link:hover{ color:var(--ink); }
+
+  /* Side panel */
+  .side{
+    flex:0 0 352px; min-width:0; padding:26px 26px 30px;
+    display:flex; flex-direction:column; gap:26px; overflow:auto;
+  }
+  .group-title{
+    display:flex; align-items:center; gap:10px;
+    text-transform:uppercase; letter-spacing:.26em; font-size:.66rem;
+    color:var(--ink-soft); margin-bottom:12px;
+  }
+  .group-title::before{ content:''; width:6px; height:6px; background:var(--blue); transform:rotate(45deg); flex:none; }
+  .group-title::after{ content:''; flex:1; height:3px; border-top:1px solid var(--blue); border-bottom:1px solid var(--blue2); }
+  .hint{ font-size:.7rem; color:var(--ink-soft); line-height:1.5; margin-top:10px; }
+  .hint kbd{ font-family:var(--font-ui); font-size:.66rem; border:1px solid var(--line); padding:1px 5px; color:var(--ink); }
+
+  .shape-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+  .cat + .cat{ margin-top:20px; }
+
+  button.tool{
+    --c:var(--blue2);
+    border:1px solid var(--line); background:
+      linear-gradient(var(--c),var(--c)) top left/8px 1px no-repeat,
+      linear-gradient(var(--c),var(--c)) top left/1px 8px no-repeat,
+      linear-gradient(var(--c),var(--c)) top right/8px 1px no-repeat,
+      linear-gradient(var(--c),var(--c)) top right/1px 8px no-repeat,
+      linear-gradient(var(--c),var(--c)) bottom left/8px 1px no-repeat,
+      linear-gradient(var(--c),var(--c)) bottom left/1px 8px no-repeat,
+      linear-gradient(var(--c),var(--c)) bottom right/8px 1px no-repeat,
+      linear-gradient(var(--c),var(--c)) bottom right/1px 8px no-repeat,
+      var(--panel);
+    box-shadow:inset 0 0 0 3px var(--panel), inset 0 0 0 4px var(--panel-edge);
+    color:var(--ink); font-family:var(--font-ui); font-size:.72rem;
+    letter-spacing:.06em; padding:11px 8px; cursor:pointer;
+  }
+  button.tool:hover{ --c:#fff; }
+  button.tool:focus-visible{ outline:1px solid #fff; outline-offset:2px; }
+  button.tool.active{ --c:var(--blue); background-color:rgba(63,111,168,.18); color:#fff; }
+  button.tool.danger:hover{ --c:var(--danger); color:#e3b4b4; }
+
+  button.shape{
+    display:flex; flex-direction:column; align-items:center; gap:7px; padding:12px 4px 10px;
+    min-width:0;
+  }
+  button.shape svg{ width:46px; height:30px; display:block; overflow:visible; }
+  button.shape span{
+    font-size:.64rem; letter-spacing:.03em; color:var(--ink-soft); line-height:1.25;
+    text-align:center; overflow-wrap:anywhere;
+  }
+  button.shape:hover span{ color:var(--ink); }
+
+  .seg{ display:grid; gap:6px; }
+  .seg.c2{ grid-template-columns:repeat(2,1fr); }
+  .seg.c3{ grid-template-columns:repeat(3,1fr); }
+  .seg.c4{ grid-template-columns:repeat(4,1fr); }
+  .seg button.tool{ padding:9px 4px; font-size:.68rem; }
+
+  .checks{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+  .check{ display:flex; align-items:center; gap:9px; font-size:.8rem; color:var(--ink-soft); cursor:pointer; }
+  .check input{ accent-color:var(--blue); width:14px; height:14px; margin:0; }
+  .check:has(input:checked){ color:var(--ink); }
+  .sub{ font-size:.7rem; color:var(--ink-soft); margin:16px 0 8px; letter-spacing:.04em; }
+
+  button.generate{
+    width:100%; background:var(--blue); border:1px solid var(--blue2); color:#fff;
+    font-family:var(--font-ui); font-size:.72rem; text-transform:uppercase; letter-spacing:.22em;
+    padding:14px 10px; cursor:pointer;
+    box-shadow:inset 0 0 0 3px var(--blue), inset 0 0 0 4px rgba(231,234,240,.35);
+  }
+  button.generate:hover{ background:#4a7cb8; }
+  button.generate:focus-visible{ outline:1px solid #fff; outline-offset:2px; }
+  header button.generate{ padding:11px 16px; letter-spacing:.16em; width:auto; }
+  button.reset{
+    width:100%; margin-top:8px; background:transparent; border:1px solid var(--line);
+    color:var(--ink-soft); font-family:var(--font-ui); font-size:.68rem; text-transform:uppercase;
+    letter-spacing:.2em; padding:11px 10px; cursor:pointer;
+  }
+  button.reset:hover{ color:var(--ink); border-color:var(--blue2); }
+  button.reset:focus-visible{ outline:1px solid #fff; outline-offset:2px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .row2 button.reset{ margin-top:8px; }
+
+  /* Glossary */
+  dialog.glossary{
+    width:min(1040px, 94vw); height:min(90vh, 900px); max-width:none; max-height:none;
+    padding:0; border:none; background:var(--bg); color:var(--ink);
+  }
+  dialog.glossary::backdrop{ background:rgba(5,6,9,.8); }
+  .g-frame{ position:absolute; inset:0; }
+  .g-inner{ position:absolute; inset:22px; display:flex; flex-direction:column; z-index:4; min-height:0; }
+  .g-top{
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:14px 18px 16px;
+    border-bottom:4px double var(--blue2); flex:none;
+  }
+  .g-top h2{ margin:0; font-family:var(--font-display); font-weight:800; font-size:1.5rem; letter-spacing:.02em; }
+  .g-top input{
+    margin-left:auto; width:min(260px,100%); background:var(--panel); border:1px solid var(--line); color:var(--ink);
+    font-family:var(--font-ui); font-size:.82rem; padding:9px 10px; outline:none; border-radius:0;
+  }
+  .g-top input:focus{ border-color:var(--blue2); }
+  .g-body{ display:flex; flex:1; min-height:0; }
+  .g-nav{
+    flex:0 0 200px; padding:20px 18px; border-right:1px solid var(--line); overflow:auto;
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .g-nav a{
+    color:var(--ink-soft); text-decoration:none; font-size:.78rem; padding:7px 8px; border-left:2px solid transparent;
+  }
+  .g-nav a:hover{ color:var(--ink); border-left-color:var(--blue2); }
+  .g-nav a:focus-visible{ outline:1px solid #fff; }
+  .g-nav .n{ color:#4d5563; font-size:.68rem; margin-left:4px; font-variant-numeric:tabular-nums; }
+  .g-content{ flex:1; overflow:auto; padding:24px 28px 40px; scroll-behavior:smooth; }
+  @media (prefers-reduced-motion:reduce){ .g-content{ scroll-behavior:auto; } }
+  .g-intro{ max-width:68ch; font-size:.9rem; line-height:1.6; color:#c3c9d4; margin:0 0 28px; }
+  .g-sec{ margin-bottom:34px; }
+  .g-sec > p{ max-width:68ch; font-size:.82rem; line-height:1.6; color:var(--ink-soft); margin:-2px 0 16px; }
+  .g-entry{
+    display:grid; grid-template-columns:110px 1fr; gap:20px; padding:18px 0; border-top:1px solid var(--line);
+  }
+  .g-entry.flash{ animation:gflash 1.4s ease-out; }
+  @keyframes gflash{ from{ background:rgba(63,111,168,.22); } to{ background:transparent; } }
+  @media (prefers-reduced-motion:reduce){ .g-entry.flash{ animation:none; outline:1px solid var(--blue); } }
+  .g-icon{
+    width:110px; height:76px; display:flex; align-items:center; justify-content:center;
+    background:var(--panel); border:1px solid var(--line);
+    box-shadow:inset 0 0 0 3px var(--panel), inset 0 0 0 4px var(--panel-edge);
+  }
+  .g-icon svg{ width:86px; height:56px; overflow:visible; }
+  .g-entry h3{ margin:0 0 3px; font-size:1rem; font-weight:600; letter-spacing:.01em; }
+  .g-aka{ font-size:.72rem; color:var(--blue2); margin-bottom:10px; }
+  .g-entry p{ margin:0 0 8px; font-size:.84rem; line-height:1.6; color:#c3c9d4; max-width:66ch; }
+  .g-entry p b{ color:var(--ink); font-weight:500; }
+  .g-entry .g-tip{ color:var(--ink-soft); }
+  .g-entry button.tool{ margin-top:6px; padding:8px 12px; font-size:.68rem; }
+  .g-rules{ margin:0; padding:0; list-style:none; max-width:70ch; }
+  .g-rules li{ position:relative; padding:12px 0 12px 22px; border-top:1px solid var(--line); font-size:.84rem; line-height:1.6; color:#c3c9d4; }
+  .g-rules li::before{ content:''; position:absolute; left:3px; top:20px; width:6px; height:6px; background:var(--blue); transform:rotate(45deg); }
+  .g-rules li b{ color:var(--ink); font-weight:500; }
+  .g-none{ color:var(--ink-soft); font-size:.85rem; }
+
+  @media (max-width:860px){
+    body{ height:auto; overflow:auto; }
+    .app{ flex-direction:column; }
+    .stage{ border-right:none; border-bottom:1px solid var(--line); padding:14px; height:74vh; flex:none; }
+    .side{ flex:none; padding:24px 20px; overflow:visible; }
+    header{ padding:16px 20px; }
+    .head-actions{ margin-left:0; width:100%; }
+    .head-actions button{ flex:1; min-width:0; }
+    .inspector{ width:auto; left:12px; max-height:55%; }
+    .g-nav{ display:none; }
+    .g-entry{ grid-template-columns:1fr; gap:12px; }
+    .g-content{ padding:20px 18px 30px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Flowchart studio</h1>
+  <span class="count" id="count" aria-live="polite"></span>
+  <div class="head-actions">
+    <button class="tool" id="btnGlossary">Glossary</button>
+    <button class="generate" id="btnQuickPng">Download image</button>
+  </div>
+</header>
+
+<div class="app">
+  <div class="stage">
+    <div class="rail-frame">
+      <div class="rail-d tl"></div><div class="rail-d tr"></div>
+      <div class="rail-d bl"></div><div class="rail-d br"></div>
+      <div class="canvas-wrap" id="wrap">
+        <svg id="svg" xmlns="http://www.w3.org/2000/svg" aria-label="Flowchart canvas"><g id="world"></g></svg>
+        <div class="empty-state" id="empty">
+          <p><strong>Pick a shape from the panel to start.</strong><br>Drag from the small diamonds on a shape's edge to connect it to another one.</p>
+          <button class="tool" id="btnExampleEmpty">Load an example</button>
+        </div>
+        <div class="zoombar">
+          <button id="zOut" aria-label="Zoom out">−</button>
+          <span class="pct" id="zPct">100%</span>
+          <button id="zIn" aria-label="Zoom in">+</button>
+          <button id="zFit">Fit</button>
+          <span class="sep"></span>
+          <button id="bUndo" aria-label="Undo">Undo</button>
+          <button id="bRedo" aria-label="Redo">Redo</button>
+        </div>
+        <div class="inspector" id="inspector" hidden></div>
+        <textarea class="inline-edit" id="inline" hidden aria-label="Edit label"></textarea>
+        <div class="toast" id="toast" role="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div>
+      <div class="group-title">Shapes</div>
+      <div id="palette"></div>
+      <div class="hint">Click to add, or drag onto the canvas. Double-click a shape to edit its text. Open the glossary to see what each symbol means.</div>
+    </div>
+
+    <div>
+      <div class="group-title">Download</div>
+      <div class="sub" style="margin-top:0">Colors</div>
+      <div class="seg c2" id="expPalette">
+        <button class="tool active" data-v="dark">Dark</button>
+        <button class="tool" data-v="light">Light, for print</button>
+      </div>
+      <div class="sub">Resolution</div>
+      <div class="seg c3" id="expScale">
+        <button class="tool" data-v="1">1x</button>
+        <button class="tool active" data-v="2">2x</button>
+        <button class="tool" data-v="3">3x</button>
+      </div>
+      <div class="checks">
+        <label class="check"><input type="checkbox" id="expFrame" checked> Decorative frame</label>
+        <label class="check"><input type="checkbox" id="expTransparent"> Transparent background</label>
+      </div>
+      <div style="margin-top:16px">
+        <button class="generate" id="btnPng">Download PNG</button>
+        <button class="reset" id="btnSvg">Download SVG</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="group-title">Project</div>
+      <div class="row2">
+        <button class="reset" id="btnSaveJson">Save project</button>
+        <button class="reset" id="btnOpenJson">Open project</button>
+        <button class="reset" id="btnExample">Load example</button>
+        <button class="reset" id="btnClear">Clear canvas</button>
+      </div>
+      <div class="checks">
+        <label class="check"><input type="checkbox" id="optSnap" checked> Snap to grid</label>
+      </div>
+      <div class="hint">Your work is saved in this browser automatically. Save project downloads a file you can open later or send to someone.<br><br>
+        <kbd>Del</kbd> remove &nbsp; <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo &nbsp; <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicate &nbsp; <kbd>Enter</kbd> edit text &nbsp; arrows nudge &nbsp; scroll to zoom, drag the background to move around</div>
+    </div>
+  </aside>
+</div>
+
+<dialog class="glossary" id="glossary" aria-labelledby="gTitle">
+  <div class="g-frame rail-frame">
+    <div class="rail-d tl"></div><div class="rail-d tr"></div>
+    <div class="rail-d bl"></div><div class="rail-d br"></div>
+  </div>
+  <div class="g-inner">
+    <div class="g-top">
+      <h2 id="gTitle">Flowchart glossary</h2>
+      <input type="search" id="gSearch" placeholder="Search symbols" aria-label="Search symbols">
+      <button class="x" id="gClose" aria-label="Close glossary" style="margin-top:0">×</button>
+    </div>
+    <div class="g-body">
+      <nav class="g-nav" id="gNav" aria-label="Glossary sections"></nav>
+      <div class="g-content" id="gContent"></div>
+    </div>
+  </div>
+</dialog>
+
+<input type="file" id="fileIn" accept=".json,application/json" hidden>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- Shape library ---------- */
+const CATS = [
+  { id:'core', name:'Core flow', intro:'The six symbols that cover most business and process flowcharts. If your readers are not technical, try to stay within this group.' },
+  { id:'data', name:'Data and documents', intro:'Where information comes from, where it is kept and how it is shown to people.' },
+  { id:'ops',  name:'Operations and timing', intro:'Manual work, waiting time, loops and the handling of groups of items.' },
+  { id:'conn', name:'Connectors and notes', intro:'Symbols that link parts of a chart, join flows together or explain something without changing the flow.' }
+];
+
+const circle = (cx, cy, r) => `M${cx-r} ${cy}A${r} ${r} 0 1 0 ${cx+r} ${cy}A${r} ${r} 0 1 0 ${cx-r} ${cy}Z`;
+const rectD  = (w, h) => `M0 0H${w}V${h}H0Z`;
+const docD = (w, h, dx=0, dy=0) => {
+  const k = h * .12;
+  return `M${dx} ${dy}H${dx+w}V${dy+h-k}Q${dx+w*.75} ${dy+h-k*2.6} ${dx+w/2} ${dy+h-k}T${dx} ${dy+h-k}Z`;
+};
+const box = (x, y, w, h, align) => ({ x, y, w, h, align });
+
+const SHAPES = {
+  /* Core */
+  terminator:{ name:'Start / End', cat:'core', w:150, h:50,
+    paths:(w,h)=>{ const r=Math.min(h/2,w/2); return [{d:`M${r} 0H${w-r}A${r} ${r} 0 0 1 ${w-r} ${h}H${r}A${r} ${r} 0 0 1 ${r} 0Z`}]; },
+    text:(w,h)=>box(h*.3,4,w-h*.6,h-8),
+    g:{ aka:'Terminator, terminal, pill',
+      what:'Marks where the process begins and where it ends.',
+      use:'Use it for the first and the last step. Label it with "Start" and "End", or better, with the real trigger and outcome, such as "Lead submits form" or "Contract signed".',
+      tip:'Keep a single start so readers know where to enter. Several ends are fine when the process can finish in different ways.' } },
+  process:{ name:'Process', cat:'core', w:170, h:56,
+    paths:(w,h)=>[{d:rectD(w,h)}],
+    g:{ aka:'Action, step, task, activity',
+      what:'A single action that someone or something performs.',
+      use:'The most common box in any chart. Use it for every step where work happens: "Send proposal", "Qualify lead", "Approve budget".',
+      tip:'Start the label with a verb and keep one action per box. If a box needs a paragraph, it is probably two or three steps.' } },
+  decision:{ name:'Decision', cat:'core', w:160, h:100,
+    paths:(w,h)=>[{d:`M${w/2} 0L${w} ${h/2}L${w/2} ${h}L0 ${h/2}Z`}],
+    text:(w,h)=>box(w*.2,h*.2,w*.6,h*.6),
+    g:{ aka:'Conditional, branch, diamond',
+      what:'A question whose answer sends the flow down different paths.',
+      use:'Use it for yes or no checks, approvals and thresholds: "Budget above $5k?", "Lead qualified?".',
+      tip:'Write it as a question and label every line that leaves it. A decision with unlabeled exits is the most common reason a flowchart gets misread.' } },
+  io:{ name:'Data (input / output)', cat:'core', w:170, h:56,
+    paths:(w,h)=>{ const s=Math.min(20,w*.18); return [{d:`M${s} 0H${w}L${w-s} ${h}H0Z`}]; },
+    text:(w,h)=>{ const s=Math.min(20,w*.18); return box(s,6,w-s*2,h-12); },
+    ports:(w,h)=>{ const s=Math.min(20,w*.18); return { left:[s/2,h/2], right:[w-s/2,h/2] }; },
+    g:{ aka:'Input/output, I/O, parallelogram',
+      what:'Information that enters or leaves the process.',
+      use:'Use it for data coming in or going out: a form submission, a lead from an ad, a report sent to the client, a file received.',
+      tip:'It represents the data itself, not the work done with it. "Receive form" is data; "Review form" is a process.' } },
+  predefined:{ name:'Subprocess', cat:'core', w:170, h:56,
+    paths:(w,h)=>[{d:rectD(w,h)},{d:`M12 0V${h}M${w-12} 0V${h}`,fill:false}],
+    text:(w,h)=>box(16,6,w-32,h-12),
+    g:{ aka:'Predefined process, subroutine',
+      what:'A group of steps that is described in detail somewhere else and appears here as a single block.',
+      use:'Use it for routines that repeat across charts, or for another team\'s procedure you do not want to redraw: "Onboarding process", "Billing routine".',
+      tip:'Name it exactly like the other chart so people can find it. This keeps big flows readable.' } },
+  alternate:{ name:'Alternate process', cat:'core', w:170, h:56,
+    paths:(w,h)=>{ const r=Math.min(14,h/3); return [{d:`M${r} 0H${w-r}Q${w} 0 ${w} ${r}V${h-r}Q${w} ${h} ${w-r} ${h}H${r}Q0 ${h} 0 ${h-r}V${r}Q0 0 ${r} 0Z`}]; },
+    g:{ aka:'Rounded process',
+      what:'A variation of the normal step, used as a backup or exception path.',
+      use:'Use it when you want to show that a step replaces the standard one in some cases, such as a manual fallback when an automation fails.',
+      tip:'Many teams read it as a normal process. Only use it if everyone reading the chart knows the difference.' } },
+
+  /* Data */
+  document:{ name:'Document', cat:'data', w:160, h:66,
+    paths:(w,h)=>[{d:docD(w,h)}],
+    text:(w,h)=>box(10,4,w-20,h-h*.12-8),
+    ports:(w,h)=>({ bottom:[w/2,h-h*.12] }),
+    g:{ aka:'Report, file, printout',
+      what:'A document that is produced or used in the process, printed or digital.',
+      use:'Use it for invoices, contracts, proposals, briefs, reports.',
+      tip:'Name the document, not the action: "Signed contract", not "Sign contract".' } },
+  multidoc:{ name:'Multiple documents', cat:'data', w:170, h:76,
+    paths:(w,h)=>{ const o=6, dw=w-o*2, dh=h-o*2; return [{d:docD(dw,dh,o*2,0)},{d:docD(dw,dh,o,o)},{d:docD(dw,dh,0,o*2)}]; },
+    text:(w,h)=>{ const o=6, dh=h-o*2; return box(8,o*2+3,w-o*2-16,dh-dh*.12-6); },
+    g:{ aka:'Documents, batch of files',
+      what:'Several documents, or a batch of the same kind of document.',
+      use:'Use it for sets: "Monthly reports", "Candidate CVs", "Signed proposals".',
+      tip:'If the number matters, put it in the label: "3 quotes from suppliers".' } },
+  database:{ name:'Database', cat:'data', w:110, h:76,
+    paths:(w,h)=>{ const e=Math.min(h*.16,14); return [
+      {d:`M0 ${e}A${w/2} ${e} 0 0 1 ${w} ${e}V${h-e}A${w/2} ${e} 0 0 1 0 ${h-e}Z`},
+      {d:`M0 ${e}A${w/2} ${e} 0 0 0 ${w} ${e}`,fill:false}]; },
+    text:(w,h)=>{ const e=Math.min(h*.16,14); return box(6,e*2,w-12,h-e*3); },
+    g:{ aka:'Stored data on disk, magnetic disk, cylinder',
+      what:'Information kept in a system where it can be searched and updated.',
+      use:'Use it for CRMs, ERPs, spreadsheets used as a database, data warehouses: "CRM", "Customer base".',
+      tip:'Connect it to the steps that read or write data with a dashed line so it does not look like part of the sequence.' } },
+  stored:{ name:'Stored data', cat:'data', w:160, h:56,
+    paths:(w,h)=>{ const c=Math.min(18,w*.14); return [{d:`M${c} 0H${w}A${c} ${h/2} 0 0 0 ${w} ${h}H${c}A${c} ${h/2} 0 0 1 ${c} 0Z`}]; },
+    text:(w,h)=>{ const c=Math.min(18,w*.14); return box(c+2,6,w-c*2-4,h-12); },
+    ports:(w,h)=>{ const c=Math.min(18,w*.14); return { right:[w-c,h/2] }; },
+    g:{ aka:'Data storage',
+      what:'Data that is stored somewhere, without saying how or where.',
+      use:'Use it when the storage medium does not matter to the reader: "Archive", "Saved leads".',
+      tip:'Prefer the database symbol when you mean a specific system people can query.' } },
+  internal:{ name:'Internal storage', cat:'data', w:150, h:60,
+    paths:(w,h)=>[{d:rectD(w,h)},{d:`M12 0V${h}M0 12H${w}`,fill:false}],
+    text:(w,h)=>box(16,14,w-22,h-18),
+    g:{ aka:'Memory',
+      what:'Data held in memory while a program runs.',
+      use:'Mostly used in software and programming charts: temporary variables, cache, session data.',
+      tip:'In business process maps you rarely need it. Use the database or stored data symbol instead.' } },
+  direct:{ name:'Direct access storage', cat:'data', w:150, h:56,
+    paths:(w,h)=>{ const e=Math.min(w*.12,18); return [
+      {d:`M${e} 0H${w-e}A${e} ${h/2} 0 0 1 ${w-e} ${h}H${e}A${e} ${h/2} 0 0 1 ${e} 0Z`},
+      {d:`M${w-e} 0A${e} ${h/2} 0 0 0 ${w-e} ${h}`,fill:false}]; },
+    text:(w,h)=>{ const e=Math.min(w*.12,18); return box(e,6,w-e*3,h-12); },
+    g:{ aka:'Hard drive, horizontal cylinder',
+      what:'Storage that can be read directly, traditionally a hard drive.',
+      use:'Shows up in older technical charts. Today it is mostly interchangeable with the database symbol.',
+      tip:'Pick one of the two storage symbols and use it consistently across your charts.' } },
+  display:{ name:'Display', cat:'data', w:160, h:56,
+    paths:(w,h)=>{ const p=Math.min(22,w*.16), c=Math.min(18,w*.12); return [{d:`M${p} 0H${w-c}A${c} ${h/2} 0 0 1 ${w-c} ${h}H${p}L0 ${h/2}Z`}]; },
+    text:(w,h)=>{ const p=Math.min(22,w*.16), c=Math.min(18,w*.12); return box(p,6,w-p-c-2,h-12); },
+    g:{ aka:'Screen, output on screen',
+      what:'Information shown on a screen for someone to see.',
+      use:'Use it for dashboards, confirmation pages, alerts, a thank-you page after a form.',
+      tip:'Handy in funnel maps to show what the user actually sees at each stage.' } },
+  manualinput:{ name:'Manual input', cat:'data', w:160, h:60,
+    paths:(w,h)=>[{d:`M0 ${h*.3}L${w} 0V${h}H0Z`}],
+    text:(w,h)=>box(10,h*.3,w-20,h*.7-6),
+    ports:(w,h)=>({ top:[w/2,h*.15] }),
+    g:{ aka:'Keyboard input, form entry',
+      what:'Data that a person types or enters by hand.',
+      use:'Use it for form fields, a salesperson logging a call, manual data entry in a system.',
+      tip:'A good place to look for errors and delays. Manual entry is often what breaks tracking and reporting.' } },
+
+  /* Operations */
+  manualop:{ name:'Manual operation', cat:'ops', w:170, h:56,
+    paths:(w,h)=>{ const s=Math.min(20,w*.14); return [{d:`M0 0H${w}L${w-s} ${h}H${s}Z`}]; },
+    text:(w,h)=>{ const s=Math.min(20,w*.14); return box(s,6,w-s*2,h-12); },
+    ports:(w,h)=>{ const s=Math.min(20,w*.14); return { left:[s/2,h/2], right:[w-s/2,h/2] }; },
+    g:{ aka:'Manual task, trapezoid',
+      what:'A step done by a person, with no automation.',
+      use:'Use it to make human work visible: "Call the lead", "Check documents", "Send WhatsApp follow-up".',
+      tip:'Mapping manual steps separately is the fastest way to spot what can be automated.' } },
+  preparation:{ name:'Preparation', cat:'ops', w:170, h:56,
+    paths:(w,h)=>{ const s=Math.min(22,w*.16); return [{d:`M${s} 0H${w-s}L${w} ${h/2}L${w-s} ${h}H${s}L0 ${h/2}Z`}]; },
+    text:(w,h)=>{ const s=Math.min(22,w*.16); return box(s,6,w-s*2,h-12); },
+    g:{ aka:'Initialization, setup, hexagon',
+      what:'Setup work that has to happen before the main steps.',
+      use:'Use it for configuration and preparation: "Set up campaign", "Prepare briefing". In programming it marks the start of a loop or a variable being set.',
+      tip:'It helps separate setup time from execution time when you estimate how long a process takes.' } },
+  delay:{ name:'Delay', cat:'ops', w:140, h:56,
+    paths:(w,h)=>{ const r=Math.min(h/2,w/2); return [{d:`M0 0H${w-r}A${r} ${r} 0 0 1 ${w-r} ${h}H0Z`}]; },
+    text:(w,h)=>{ const r=Math.min(h/2,w/2); return box(8,6,w-r-6,h-12); },
+    g:{ aka:'Wait, D shape',
+      what:'Time passes and nothing moves until something happens.',
+      use:'Use it for waiting periods: "Wait 48 hours", "Wait for client approval", "Wait for payment".',
+      tip:'Write the expected duration in the label. Delays are usually where conversion and speed are lost.' } },
+  loop:{ name:'Loop limit', cat:'ops', w:160, h:56,
+    paths:(w,h)=>{ const c=Math.min(14,h*.3); return [{d:`M${c} 0H${w-c}L${w} ${c}V${h}H0V${c}Z`}]; },
+    g:{ aka:'Loop start, loop end',
+      what:'Marks where a repeated sequence starts and where it stops.',
+      use:'Used in pairs: one at the top of the repeated steps with the condition ("For each lead"), and one at the bottom ("Next lead").',
+      tip:'For simple repetition, an arrow going back to an earlier step with a labeled decision is often clearer.' } },
+  merge:{ name:'Merge', cat:'ops', w:90, h:70,
+    paths:(w,h)=>[{d:`M0 0H${w}L${w/2} ${h}Z`}],
+    text:(w,h)=>box(w*.2,4,w*.6,h*.45),
+    ports:(w,h)=>({ left:[w/4,h/2], right:[w*.75,h/2] }),
+    g:{ aka:'Combine, inverted triangle',
+      what:'Two or more sets of items combined into one.',
+      use:'Use it when lists or sources come together: "Leads from ads and organic join the same list".',
+      tip:'Draw several lines entering from above and one line leaving from the bottom point.' } },
+  extract:{ name:'Extract', cat:'ops', w:90, h:70,
+    paths:(w,h)=>[{d:`M${w/2} 0L${w} ${h}H0Z`}],
+    text:(w,h)=>box(w*.2,h*.5,w*.6,h*.45),
+    ports:(w,h)=>({ left:[w/4,h/2], right:[w*.75,h/2] }),
+    g:{ aka:'Split, triangle',
+      what:'One set of items split into several, the opposite of merge.',
+      use:'Use it when a single list is divided: "Split leads by region", "Separate hot and cold leads".',
+      tip:'Label each outgoing line with the criterion used for the split.' } },
+  sort:{ name:'Sort', cat:'ops', w:90, h:90,
+    paths:(w,h)=>[{d:`M${w/2} 0L${w} ${h/2}L${w/2} ${h}L0 ${h/2}Z`},{d:`M0 ${h/2}H${w}`,fill:false}],
+    text:(w,h)=>box(w*.22,h*.16,w*.56,h*.32),
+    g:{ aka:'Order, rank',
+      what:'Items put in a specific order.',
+      use:'Use it for ranking and prioritization: "Sort leads by score", "Order tickets by urgency".',
+      tip:'Put the sorting rule in the label or in an annotation next to it.' } },
+  collate:{ name:'Collate', cat:'ops', w:70, h:80, labelBelow:true,
+    paths:(w,h)=>[{d:`M0 0H${w}L0 ${h}H${w}Z`}],
+    g:{ aka:'Hourglass',
+      what:'Information gathered and organized into a standard format.',
+      use:'Use it when data from different places is collected and arranged together, for example consolidating reports from several channels.',
+      tip:'Uncommon outside formal documentation. A process box with a clear label works for most audiences.' } },
+
+  /* Connectors */
+  onpage:{ name:'On-page connector', cat:'conn', w:50, h:50,
+    paths:(w,h)=>{ const r=Math.min(w,h)/2; return [{d:circle(w/2,h/2,r)}]; },
+    text:(w,h)=>box(4,4,w-8,h-8),
+    g:{ aka:'Connector, reference circle',
+      what:'A jump to another point on the same page, used instead of a long line.',
+      use:'Place one circle where the flow leaves and another with the same letter or number where it continues: "A" goes to "A".',
+      tip:'Use it when lines would cross the whole chart. Too many connectors make readers jump around, so use them sparingly.' } },
+  offpage:{ name:'Off-page connector', cat:'conn', w:70, h:70,
+    paths:(w,h)=>[{d:`M0 0H${w}V${h*.6}L${w/2} ${h}L0 ${h*.6}Z`}],
+    text:(w,h)=>box(5,5,w-10,h*.55),
+    g:{ aka:'Page reference, home plate',
+      what:'The flow continues on another page or in another chart.',
+      use:'Use it to split big processes into smaller charts. Label it with the destination: "Page 2", "Sales flow".',
+      tip:'Pair it with a matching connector at the start of the other chart.' } },
+  summing:{ name:'Summing junction', cat:'conn', w:50, h:50, labelBelow:true,
+    paths:(w,h)=>{ const r=Math.min(w,h)/2, o=r*.707, cx=w/2, cy=h/2; return [{d:circle(cx,cy,r)},{d:`M${cx-o} ${cy-o}L${cx+o} ${cy+o}M${cx+o} ${cy-o}L${cx-o} ${cy+o}`,fill:false}]; },
+    g:{ aka:'AND junction',
+      what:'Several flows come together and all of them must finish before the process continues.',
+      use:'Use it when parallel work has to be complete: "Contract signed" and "Payment received" before "Start project".',
+      tip:'Works like a logical AND. If any single flow is enough, use the Or symbol.' } },
+  or:{ name:'Or', cat:'conn', w:50, h:50, labelBelow:true,
+    paths:(w,h)=>{ const r=Math.min(w,h)/2, cx=w/2, cy=h/2; return [{d:circle(cx,cy,r)},{d:`M${cx} ${cy-r}V${cy+r}M${cx-r} ${cy}H${cx+r}`,fill:false}]; },
+    g:{ aka:'OR junction',
+      what:'Several flows come together and any one of them is enough to continue.',
+      use:'Use it when there are different ways to reach the same point: a lead can arrive "from an ad" or "from a referral".',
+      tip:'Works like a logical OR. If every flow must finish, use the summing junction.' } },
+  annotation:{ name:'Annotation', cat:'conn', w:170, h:60, defTone:'ghost',
+    paths:(w,h)=>[{d:rectD(w,h),hit:true},{d:`M16 0H0V${h}H16`,fill:false}],
+    text:(w,h)=>box(12,4,w-16,h-8,'left'),
+    g:{ aka:'Comment, note, open bracket',
+      what:'An explanation or note that does not change the flow.',
+      use:'Use it for context: the rule behind a decision, an SLA, who owns a step, a metric to watch.',
+      tip:'Link it to the step it explains with a dashed line and no arrow, so it is not read as part of the sequence.' } }
+};
+const TYPES = Object.keys(SHAPES);
+const textBox = (n) => {
+  const s = SHAPES[n.type];
+  if (s.labelBelow) return box(-40, n.h + 6, n.w + 80, 30);
+  return s.text ? s.text(n.w, n.h) : box(10, 6, n.w - 20, n.h - 12);
+};
+
+/* ---------- Palettes ---------- */
+function palette(name){
+  if (name === 'light') return {
+    bg:'#ffffff', label:'#ffffff', edge:'#3a4352', edgeText:'#14171f', sel:'#3f6fa8',
+    frameA:'rgba(20,23,31,.55)', frameB:'rgba(63,111,168,.45)', dia:'#3f6fa8', diaStroke:'#ffffff', diaRing:'rgba(20,23,31,.45)',
+    tones:{
+      steel:{ f:'#ffffff', s:'#5c7f9e', t:'#14171f', w:1.5 },
+      blue: { f:'#e9f0f8', s:'#3f6fa8', t:'#0d0f14', w:2 },
+      ink:  { f:'#ffffff', s:'#14171f', t:'#14171f', w:1.5 },
+      ghost:{ f:'transparent', s:'#7c8698', t:'#3a4352', w:1.3, dash:'5 4' }
+    } };
+  return {
+    bg:'#0d0f14', label:'#0d0f14', edge:'#7c8698', edgeText:'#c3c9d4', sel:'#ffffff',
+    frameA:'rgba(231,234,240,.6)', frameB:'rgba(92,127,158,.35)', dia:'#3f6fa8', diaStroke:'#0d0f14', diaRing:'rgba(231,234,240,.5)',
+    tones:{
+      steel:{ f:'#14171f', s:'#5c7f9e', t:'#e7eaf0', w:1.5 },
+      blue: { f:'#172233', s:'#3f6fa8', t:'#ffffff', w:2 },
+      ink:  { f:'#1a1e27', s:'#e7eaf0', t:'#e7eaf0', w:1.5 },
+      ghost:{ f:'transparent', s:'#7c8698', t:'#c3c9d4', w:1.3, dash:'5 4' }
+    } };
+}
+const SCREEN = palette('dark');
+const FONT_STACK = '"Space Grotesk", system-ui, sans-serif';
+const SIZES = { s:11, m:13, l:15 };
+
+/* ---------- State ---------- */
+const STORE_KEY = 'flowchart-studio:v1';
+let doc = { nodes:[], edges:[] };
+let view = { x:40, y:30, k:1 };
+let sel = null;           // {kind:'node'|'edge', id}
+let drag = null;
+let undoStack = [], redoStack = [];
+let snap = true;
+let exp = { palette:'dark', scale:2, frame:true, transparent:false };
+let addOffset = 0;
+
+const $ = (s) => document.querySelector(s);
+const svg = $('#svg'), world = $('#world'), wrap = $('#wrap');
+const uid = () => Math.random().toString(36).slice(2, 9);
+const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const nodeById = (id) => doc.nodes.find(n => n.id === id);
+const edgeById = (id) => doc.edges.find(e => e.id === id);
+const snapV = (v) => snap ? Math.round(v / 10) * 10 : Math.round(v);
+
+function checkpoint(){
+  undoStack.push(JSON.stringify(doc));
+  if (undoStack.length > 120) undoStack.shift();
+  redoStack = [];
+  updateUndoButtons();
+}
+function undo(){
+  if (!undoStack.length) return;
+  redoStack.push(JSON.stringify(doc));
+  doc = JSON.parse(undoStack.pop());
+  validateSel(); render(); renderInspector(); updateUndoButtons();
+}
+function redo(){
+  if (!redoStack.length) return;
+  undoStack.push(JSON.stringify(doc));
+  doc = JSON.parse(redoStack.pop());
+  validateSel(); render(); renderInspector(); updateUndoButtons();
+}
+function validateSel(){
+  if (!sel) return;
+  if (sel.kind === 'node' && !nodeById(sel.id)) sel = null;
+  if (sel && sel.kind === 'edge' && !edgeById(sel.id)) sel = null;
+}
+function updateUndoButtons(){
+  $('#bUndo').disabled = !undoStack.length;
+  $('#bRedo').disabled = !redoStack.length;
+}
+
+/* ---------- Text measuring ---------- */
+const mctx = document.createElement('canvas').getContext('2d');
+const fontStr = (fs, weight=500) => `${weight} ${fs}px ${FONT_STACK}`;
+function wrapText(text, maxW, fs){
+  mctx.font = fontStr(fs);
+  const out = [];
+  for (const para of String(text || '').split('\n')){
+    const words = para.split(/\s+/).filter(Boolean);
+    if (!words.length){ out.push(''); continue; }
+    let line = words[0];
+    for (const w of words.slice(1)){
+      const t = line + ' ' + w;
+      if (mctx.measureText(t).width <= maxW) line = t; else { out.push(line); line = w; }
+    }
+    out.push(line);
+  }
+  while (out.length && out[out.length-1] === '') out.pop();
+  return out;
+}
+function textLayout(n){
+  const tb = textBox(n);
+  const fs = SIZES[n.size || 'm'];
+  const lines = wrapText(n.text, Math.max(20, tb.w), fs);
+  const lh = fs * 1.3;
+  const y0 = tb.y + tb.h/2 - (lines.length * lh)/2 + lh/2;
+  const s = SHAPES[n.type];
+  const yStart = s.labelBelow ? tb.y + lh/2 : y0;
+  const left = tb.align === 'left';
+  return { lines, fs, lh, x: left ? tb.x : tb.x + tb.w/2, y: yStart, align: left ? 'left' : 'center' };
+}
+function measure(text, fs){ mctx.font = fontStr(fs); return mctx.measureText(text).width; }
+
+/* ---------- Geometry ---------- */
+const DIR = { top:[0,-1], right:[1,0], bottom:[0,1], left:[-1,0] };
+function portPt(n, side){
+  const s = SHAPES[n.type];
+  const custom = s.ports ? s.ports(n.w, n.h) : {};
+  const def = { top:[n.w/2,0], right:[n.w,n.h/2], bottom:[n.w/2,n.h], left:[0,n.h/2] }[side];
+  const q = custom[side] || def;
+  return { x:n.x + q[0], y:n.y + q[1] };
+}
+const center = (n) => ({ x:n.x + n.w/2, y:n.y + n.h/2 });
+function autoSide(n, pt){
+  const c = center(n);
+  const dx = (pt.x - c.x) / n.w, dy = (pt.y - c.y) / n.h;
+  return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'bottom' : 'top');
+}
+function simplify(pts){
+  const out = [];
+  for (const p of pts){
+    const last = out[out.length-1];
+    if (last && Math.abs(last.x-p.x) < .5 && Math.abs(last.y-p.y) < .5) continue;
+    out.push(p);
+  }
+  for (let i = out.length - 2; i > 0; i--){
+    const a = out[i-1], b = out[i], c = out[i+1];
+    if ((Math.abs(a.x-b.x)<.5 && Math.abs(b.x-c.x)<.5) || (Math.abs(a.y-b.y)<.5 && Math.abs(b.y-c.y)<.5)) out.splice(i,1);
+  }
+  return out;
+}
+function edgeGeom(e){
+  const A = nodeById(e.from), B = nodeById(e.to);
+  if (!A || !B) return null;
+  const fs = e.fromSide || autoSide(A, center(B));
+  const a = portPt(A, fs);
+  const ts = e.toSide || autoSide(B, a);
+  const b = portPt(B, ts);
+  const route = e.route || 'elbow';
+  if (route === 'straight') return finishGeom({ kind:'poly', pts:[a,b] });
+  if (route === 'curved'){
+    const dist = Math.hypot(b.x-a.x, b.y-a.y);
+    const k = Math.max(40, dist * .4);
+    const c1 = { x:a.x + DIR[fs][0]*k, y:a.y + DIR[fs][1]*k };
+    const c2 = { x:b.x + DIR[ts][0]*k, y:b.y + DIR[ts][1]*k };
+    return finishGeom({ kind:'curve', a, c1, c2, b });
+  }
+  const G = 22;
+  const a1 = { x:a.x + DIR[fs][0]*G, y:a.y + DIR[fs][1]*G };
+  const b1 = { x:b.x + DIR[ts][0]*G, y:b.y + DIR[ts][1]*G };
+  const fv = fs === 'top' || fs === 'bottom', tv = ts === 'top' || ts === 'bottom';
+  let mid;
+  if (fs === ts){
+    if (fs === 'right'){ const X = Math.max(a1.x,b1.x); mid = [a1,{x:X,y:a1.y},{x:X,y:b1.y},b1]; }
+    else if (fs === 'left'){ const X = Math.min(a1.x,b1.x); mid = [a1,{x:X,y:a1.y},{x:X,y:b1.y},b1]; }
+    else if (fs === 'bottom'){ const Y = Math.max(a1.y,b1.y); mid = [a1,{x:a1.x,y:Y},{x:b1.x,y:Y},b1]; }
+    else { const Y = Math.min(a1.y,b1.y); mid = [a1,{x:a1.x,y:Y},{x:b1.x,y:Y},b1]; }
+  } else if (fv && tv){ const y = (a1.y+b1.y)/2; mid = [a1,{x:a1.x,y},{x:b1.x,y},b1]; }
+  else if (!fv && !tv){ const x = (a1.x+b1.x)/2; mid = [a1,{x,y:a1.y},{x,y:b1.y},b1]; }
+  else if (fv && !tv){ mid = [a1,{x:a1.x,y:b1.y},b1]; }
+  else { mid = [a1,{x:b1.x,y:a1.y},b1]; }
+  return finishGeom({ kind:'poly', pts:simplify([a, ...mid, b]) });
+}
+function bez(g, t){
+  const u = 1-t;
+  return {
+    x: u*u*u*g.a.x + 3*u*u*t*g.c1.x + 3*u*t*t*g.c2.x + t*t*t*g.b.x,
+    y: u*u*u*g.a.y + 3*u*u*t*g.c1.y + 3*u*t*t*g.c2.y + t*t*t*g.b.y
+  };
+}
+function finishGeom(g){
+  if (g.kind === 'curve'){
+    g.d = `M${g.a.x} ${g.a.y}C${g.c1.x} ${g.c1.y} ${g.c2.x} ${g.c2.y} ${g.b.x} ${g.b.y}`;
+    g.end = { tip:g.b, from:bez(g, .96) };
+    g.start = { tip:g.a, from:bez(g, .04) };
+    g.mid = bez(g, .5);
+    g.samples = Array.from({length:21}, (_,i) => bez(g, i/20));
+    return g;
+  }
+  const p = g.pts;
+  g.d = 'M' + p.map(q => `${q.x} ${q.y}`).join('L');
+  g.end = { tip:p[p.length-1], from:p[p.length-2] };
+  g.start = { tip:p[0], from:p[1] };
+  let total = 0; const segs = [];
+  for (let i = 1; i < p.length; i++){ const l = Math.hypot(p[i].x-p[i-1].x, p[i].y-p[i-1].y); segs.push(l); total += l; }
+  let half = total/2;
+  g.mid = p[0];
+  for (let i = 0; i < segs.length; i++){
+    if (half <= segs[i]){ const t = segs[i] ? half/segs[i] : 0; g.mid = { x:p[i].x + (p[i+1].x-p[i].x)*t, y:p[i].y + (p[i+1].y-p[i].y)*t }; break; }
+    half -= segs[i];
+  }
+  g.samples = p;
+  return g;
+}
+function arrowD(tip, from){
+  let dx = tip.x - from.x, dy = tip.y - from.y;
+  const L = Math.hypot(dx,dy) || 1; dx/=L; dy/=L;
+  const len = 10, half = 4.5;
+  const bx = tip.x - dx*len, by = tip.y - dy*len;
+  return `M${tip.x} ${tip.y}L${bx - dy*half} ${by + dx*half}L${bx + dy*half} ${by - dx*half}Z`;
+}
+function arrowsOf(e, g){
+  const a = e.arrows || 'end', out = [];
+  if (a === 'end' || a === 'both') out.push(arrowD(g.end.tip, g.end.from));
+  if (a === 'start' || a === 'both') out.push(arrowD(g.start.tip, g.start.from));
+  return out;
+}
+function labelRect(e, g){
+  if (!e.label) return null;
+  const fs = 11.5, w = measure(e.label, fs) + 14, h = fs + 10;
+  return { x:g.mid.x - w/2, y:g.mid.y - h/2, w, h, fs };
+}
+
+/* ---------- SVG markup (screen + SVG export) ---------- */
+function nodeMarkup(n, pal, interactive){
+  const s = SHAPES[n.type];
+  const t = pal.tones[n.tone] || pal.tones.steel;
+  let out = '';
+  for (const p of s.paths(n.w, n.h)){
+    if (p.hit){ out += interactive ? `<path d="${p.d}" fill="transparent" stroke="none"/>` : ''; continue; }
+    const fill = p.fill === false ? 'none' : t.f;
+    out += `<path d="${p.d}" fill="${fill}" stroke="${t.s}" stroke-width="${t.w}" stroke-linejoin="miter"${t.dash ? ` stroke-dasharray="${t.dash}"` : ''}/>`;
+  }
+  const L = textLayout(n);
+  if (L.lines.length){
+    out += `<text font-family='${FONT_STACK}' font-weight="500" font-size="${L.fs}" fill="${t.t}" text-anchor="${L.align === 'left' ? 'start' : 'middle'}" dominant-baseline="central">`;
+    L.lines.forEach((ln, i) => { out += `<tspan x="${L.x}" y="${L.y + i*L.lh}">${esc(ln)}</tspan>`; });
+    out += '</text>';
+  }
+  if (interactive){
+    const isSel = sel && sel.kind === 'node' && sel.id === n.id;
+    if (isSel) out += `<rect x="-6" y="-6" width="${n.w+12}" height="${n.h+12}" fill="none" stroke="rgba(231,234,240,.55)" stroke-dasharray="3 4" pointer-events="none"/>`;
+    for (const side of ['top','right','bottom','left']){
+      const p = portPt({ ...n, x:0, y:0 }, side);
+      out += `<g class="port" data-port="${side}"><circle cx="${p.x}" cy="${p.y}" r="11" fill="transparent"/><path d="M${p.x} ${p.y-6}L${p.x+6} ${p.y}L${p.x} ${p.y+6}L${p.x-6} ${p.y}Z" fill="#3f6fa8" stroke="#0d0f14" stroke-width="1.5"/></g>`;
+    }
+    if (isSel) out += `<g class="handle" data-handle="1"><rect x="${n.w-2}" y="${n.h-2}" width="14" height="14" fill="transparent"/><rect x="${n.w+2}" y="${n.h+2}" width="7" height="7" fill="#e7eaf0"/></g>`;
+    return `<g class="node${isSel ? ' sel' : ''}" data-id="${n.id}" transform="translate(${n.x} ${n.y})">${out}</g>`;
+  }
+  return `<g transform="translate(${n.x} ${n.y})">${out}</g>`;
+}
+function edgeMarkup(e, pal, interactive){
+  const g = edgeGeom(e); if (!g) return '';
+  const isSel = interactive && sel && sel.kind === 'edge' && sel.id === e.id;
+  const color = isSel ? pal.sel : pal.edge;
+  let out = '';
+  if (interactive) out += `<path d="${g.d}" fill="none" stroke="transparent" stroke-width="14"/>`;
+  out += `<path d="${g.d}" fill="none" stroke="${color}" stroke-width="1.5"${e.dash ? ' stroke-dasharray="5 4"' : ''} stroke-linejoin="miter"/>`;
+  for (const a of arrowsOf(e, g)) out += `<path d="${a}" fill="${color}"/>`;
+  const lr = labelRect(e, g);
+  if (lr){
+    out += `<rect x="${lr.x}" y="${lr.y}" width="${lr.w}" height="${lr.h}" fill="${pal.label}" stroke="${isSel ? pal.sel : 'none'}" stroke-width="1"/>`;
+    out += `<text x="${g.mid.x}" y="${g.mid.y}" font-family='${FONT_STACK}' font-weight="600" font-size="${lr.fs}" letter-spacing=".04em" fill="${pal.edgeText}" text-anchor="middle" dominant-baseline="central">${esc(e.label)}</text>`;
+  }
+  return interactive ? `<g class="edge" data-eid="${e.id}">${out}</g>` : `<g>${out}</g>`;
+}
+
+/* ---------- Render ---------- */
+function render(){
+  let html = '';
+  for (const e of doc.edges) html += edgeMarkup(e, SCREEN, true);
+  for (const n of doc.nodes) html += nodeMarkup(n, SCREEN, true);
+  if (drag && drag.type === 'connect'){
+    const src = nodeById(drag.from);
+    const a = portPt(src, drag.side);
+    const tgt = drag.target ? nodeById(drag.target) : null;
+    if (tgt) html += `<rect x="${tgt.x-6}" y="${tgt.y-6}" width="${tgt.w+12}" height="${tgt.h+12}" fill="none" stroke="#3f6fa8" stroke-width="1.5" pointer-events="none"/>`;
+    html += `<path d="M${a.x} ${a.y}L${drag.cur.x} ${drag.cur.y}" stroke="#5c7f9e" stroke-width="1.5" stroke-dasharray="5 4" fill="none" pointer-events="none"/>`;
+    html += `<path d="${arrowD(drag.cur, a)}" fill="#5c7f9e" pointer-events="none"/>`;
+  }
+  world.innerHTML = html;
+  world.setAttribute('transform', `translate(${view.x} ${view.y}) scale(${view.k})`);
+  wrap.style.backgroundSize = `${20*view.k}px ${20*view.k}px`;
+  wrap.style.backgroundPosition = `${view.x}px ${view.y}px`;
+  $('#zPct').textContent = Math.round(view.k * 100) + '%';
+  $('#empty').hidden = doc.nodes.length > 0;
+  const nN = doc.nodes.length, nE = doc.edges.length;
+  $('#count').textContent = nN ? `${nN} shape${nN===1?'':'s'}, ${nE} connection${nE===1?'':'s'}` : 'Empty canvas';
+  scheduleSave();
+}
+
+let saveT = null;
+function scheduleSave(){
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify({ doc, view })); } catch(_) {}
+  }, 300);
+}
+
+/* ---------- Toast ---------- */
+let toastT = null;
+function toast(msg, err){
+  const t = $('#toast');
+  t.textContent = msg; t.classList.toggle('err', !!err); t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+/* ---------- Adding / editing ---------- */
+function makeNode(type, cx, cy){
+  const s = SHAPES[type];
+  return { id:uid(), type, x:snapV(cx - s.w/2), y:snapV(cy - s.h/2), w:s.w, h:s.h,
+           text: type === 'terminator' ? 'Start' : s.name, tone: s.defTone || 'steel', size:'m' };
+}
+function addShape(type, at){
+  checkpoint();
+  let p = at;
+  if (!p){
+    const r = wrap.getBoundingClientRect();
+    p = toWorld(r.left + r.width/2, r.top + r.height/2);
+    p.x += (addOffset % 5) * 20; p.y += (addOffset % 5) * 20; addOffset++;
+  }
+  const n = makeNode(type, p.x, p.y);
+  doc.nodes.push(n);
+  sel = { kind:'node', id:n.id };
+  render(); renderInspector();
+  return n;
+}
+function deleteSel(){
+  if (!sel) return;
+  checkpoint();
+  if (sel.kind === 'node'){
+    doc.nodes = doc.nodes.filter(n => n.id !== sel.id);
+    doc.edges = doc.edges.filter(e => e.from !== sel.id && e.to !== sel.id);
+  } else doc.edges = doc.edges.filter(e => e.id !== sel.id);
+  sel = null; render(); renderInspector();
+}
+function duplicateSel(){
+  if (!sel || sel.kind !== 'node') return;
+  const n = nodeById(sel.id); if (!n) return;
+  checkpoint();
+  const c = { ...n, id:uid(), x:n.x + 30, y:n.y + 30 };
+  doc.nodes.push(c); sel = { kind:'node', id:c.id };
+  render(); renderInspector();
+}
+
+/* ---------- Coordinates / view ---------- */
+function toWorld(cx, cy){
+  const r = svg.getBoundingClientRect();
+  return { x:(cx - r.left - view.x)/view.k, y:(cy - r.top - view.y)/view.k };
+}
+function zoomAt(k2, sx, sy){
+  k2 = Math.min(3, Math.max(.25, k2));
+  view.x = sx - (sx - view.x) * k2 / view.k;
+  view.y = sy - (sy - view.y) * k2 / view.k;
+  view.k = k2;
+  closeEditor(true); render();
+}
+function zoomCenter(f){ const r = svg.getBoundingClientRect(); zoomAt(view.k * f, r.width/2, r.height/2); }
+function contentBounds(includeAll){
+  if (!doc.nodes.length) return null;
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  const add = (x, y) => { x1 = Math.min(x1,x); y1 = Math.min(y1,y); x2 = Math.max(x2,x); y2 = Math.max(y2,y); };
+  for (const n of doc.nodes){
+    add(n.x, n.y); add(n.x + n.w, n.y + n.h);
+    if (includeAll && SHAPES[n.type].labelBelow && n.text){
+      const L = textLayout(n);
+      const wMax = Math.max(...L.lines.map(l => measure(l, L.fs)));
+      add(n.x + n.w/2 - wMax/2, n.y + n.h); add(n.x + n.w/2 + wMax/2, n.y + L.y + L.lines.length * L.lh);
+    }
+  }
+  for (const e of doc.edges){
+    const g = edgeGeom(e); if (!g) continue;
+    for (const p of g.samples) add(p.x, p.y);
+    const lr = labelRect(e, g); if (lr){ add(lr.x, lr.y); add(lr.x + lr.w, lr.y + lr.h); }
+  }
+  return { x:x1, y:y1, w:x2 - x1, h:y2 - y1 };
+}
+function fit(){
+  const b = contentBounds(true); if (!b) return;
+  const r = svg.getBoundingClientRect();
+  const insp = $('#inspector').hidden ? 0 : 0;
+  const k = Math.min(1.4, Math.max(.25, Math.min((r.width - 80 - insp)/b.w, (r.height - 80)/b.h)));
+  view.k = k;
+  view.x = (r.width - b.w*k)/2 - b.x*k;
+  view.y = (r.height - b.h*k)/2 - b.y*k;
+  closeEditor(true); render();
+}
+
+/* ---------- Pointer interaction ---------- */
+let lastDown = { key:null, t:0 };
+function nodeAt(p, exclude){
+  for (let i = doc.nodes.length - 1; i >= 0; i--){
+    const n = doc.nodes[i];
+    if (n.id === exclude) continue;
+    if (p.x >= n.x - 6 && p.x <= n.x + n.w + 6 && p.y >= n.y - 6 && p.y <= n.y + n.h + 6) return n;
+  }
+  return null;
+}
+svg.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  closeEditor(true);
+  const t = e.target;
+  const portEl = t.closest('[data-port]'), handleEl = t.closest('[data-handle]');
+  const nodeEl = t.closest('.node'), edgeEl = t.closest('.edge');
+  const p = toWorld(e.clientX, e.clientY);
+  const now = performance.now();
+  const key = nodeEl ? 'n:' + nodeEl.dataset.id : edgeEl ? 'e:' + edgeEl.dataset.eid : 'bg';
+  const isDouble = key === lastDown.key && now - lastDown.t < 380 && !portEl && !handleEl;
+  lastDown = { key, t:now };
+
+  if (isDouble){
+    lastDown = { key:null, t:0 };
+    if (nodeEl){ openEditor(nodeEl.dataset.id); return; }
+    if (edgeEl){ sel = { kind:'edge', id:edgeEl.dataset.eid }; render(); renderInspector(); const i = $('#inspector [data-f="label"]'); if (i) i.focus(); return; }
+    const n = addShape('process', p); openEditor(n.id); return;
+  }
+
+  if (portEl && nodeEl){
+    drag = { type:'connect', from:nodeEl.dataset.id, side:portEl.dataset.port, cur:p, target:null };
+    svg.classList.add('connecting');
+  } else if (handleEl && nodeEl){
+    const n = nodeById(nodeEl.dataset.id);
+    drag = { type:'resize', id:n.id, sx:p.x, sy:p.y, w0:n.w, h0:n.h, started:false };
+  } else if (nodeEl){
+    const n = nodeById(nodeEl.dataset.id);
+    const changed = !(sel && sel.kind === 'node' && sel.id === n.id);
+    sel = { kind:'node', id:n.id };
+    // bring to front
+    doc.nodes = doc.nodes.filter(x => x !== n).concat(n);
+    drag = { type:'move', id:n.id, dx:p.x - n.x, dy:p.y - n.y, started:false, sx:e.clientX, sy:e.clientY };
+    if (changed) renderInspector();
+  } else if (edgeEl){
+    sel = { kind:'edge', id:edgeEl.dataset.eid }; renderInspector();
+  } else {
+    if (sel){ sel = null; renderInspector(); }
+    drag = { type:'pan', sx:e.clientX, sy:e.clientY, vx:view.x, vy:view.y };
+    svg.classList.add('panning');
+  }
+  try { svg.setPointerCapture(e.pointerId); } catch(_) {}
+  render();
+});
+svg.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  const p = toWorld(e.clientX, e.clientY);
+  if (drag.type === 'pan'){
+    view.x = drag.vx + (e.clientX - drag.sx); view.y = drag.vy + (e.clientY - drag.sy); render();
+  } else if (drag.type === 'move'){
+    if (!drag.started){
+      if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 3) return;
+      checkpoint(); drag.started = true;
+    }
+    const n = nodeById(drag.id); n.x = snapV(p.x - drag.dx); n.y = snapV(p.y - drag.dy); render();
+  } else if (drag.type === 'resize'){
+    if (!drag.started){ checkpoint(); drag.started = true; }
+    const n = nodeById(drag.id);
+    n.w = Math.max(30, snapV(drag.w0 + p.x - drag.sx));
+    n.h = Math.max(30, snapV(drag.h0 + p.y - drag.sy));
+    render(); syncSizeFields(n);
+  } else if (drag.type === 'connect'){
+    drag.cur = p;
+    const t = nodeAt(p, drag.from);
+    drag.target = t ? t.id : null;
+    render();
+  }
+});
+function endDrag(e){
+  if (!drag) return;
+  if (drag.type === 'connect'){
+    const src = nodeById(drag.from);
+    const a = portPt(src, drag.side);
+    const t = drag.target ? nodeById(drag.target) : null;
+    if (t){
+      checkpoint();
+      const ed = { id:uid(), from:src.id, fromSide:drag.side, to:t.id, toSide:null, label:'', route:'elbow', arrows:'end', dash:false };
+      doc.edges.push(ed); sel = { kind:'edge', id:ed.id };
+    } else if (Math.hypot(drag.cur.x - a.x, drag.cur.y - a.y) > 50){
+      checkpoint();
+      const n = makeNode('process', drag.cur.x, drag.cur.y);
+      doc.nodes.push(n);
+      doc.edges.push({ id:uid(), from:src.id, fromSide:drag.side, to:n.id, toSide:null, label:'', route:'elbow', arrows:'end', dash:false });
+      sel = { kind:'node', id:n.id };
+    }
+    svg.classList.remove('connecting');
+    drag = null; render(); renderInspector(); return;
+  }
+  svg.classList.remove('panning');
+  drag = null; render();
+}
+svg.addEventListener('pointerup', endDrag);
+svg.addEventListener('pointercancel', endDrag);
+svg.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const r = svg.getBoundingClientRect();
+  const f = Math.exp(-e.deltaY * (e.ctrlKey ? .01 : .0015));
+  zoomAt(view.k * f, e.clientX - r.left, e.clientY - r.top);
+}, { passive:false });
+
+/* drag from palette */
+wrap.addEventListener('dragover', (e) => { if (e.dataTransfer.types.includes('text/x-shape')) e.preventDefault(); });
+wrap.addEventListener('drop', (e) => {
+  const type = e.dataTransfer.getData('text/x-shape');
+  if (!SHAPES[type]) return;
+  e.preventDefault();
+  addShape(type, toWorld(e.clientX, e.clientY));
+});
+
+/* ---------- Inline editor ---------- */
+const inline = $('#inline');
+let editing = null;
+function openEditor(id){
+  const n = nodeById(id); if (!n) return;
+  sel = { kind:'node', id }; render(); renderInspector();
+  const tb = textBox(n), k = view.k;
+  const fs = SIZES[n.size || 'm'] * k;
+  const w = Math.max(tb.w, 80) * k, h = Math.max(tb.h, 30) * k;
+  const cx = view.x + (n.x + tb.x + tb.w/2) * k, cy = view.y + (n.y + tb.y + tb.h/2) * k;
+  Object.assign(inline.style, { left:(cx - w/2) + 'px', top:(cy - h/2) + 'px', width:w + 'px', height:h + 'px', fontSize:fs + 'px' });
+  inline.value = n.text; inline.hidden = false;
+  editing = { id, orig:n.text };
+  inline.focus(); inline.select();
+}
+function closeEditor(commit){
+  if (!editing) return;
+  const n = nodeById(editing.id);
+  const val = inline.value;
+  const ed = editing; editing = null; inline.hidden = true;
+  if (n && commit && val !== ed.orig){
+    checkpoint(); n.text = val; render(); renderInspector();
+  }
+}
+inline.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); closeEditor(true); }
+  else if (e.key === 'Escape'){ e.preventDefault(); closeEditor(false); }
+  e.stopPropagation();
+});
+inline.addEventListener('blur', () => closeEditor(true));
+
+/* ---------- Inspector ---------- */
+const insp = $('#inspector');
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+function typeOptions(cur){
+  return CATS.map(c => `<optgroup label="${c.name}">` +
+    TYPES.filter(t => SHAPES[t].cat === c.id).map(t => `<option value="${t}"${t === cur ? ' selected' : ''}>${SHAPES[t].name}</option>`).join('') +
+    '</optgroup>').join('');
+}
+const segBtns = (field, opts, cur) => opts.map(([v, l]) => `<button class="tool${cur === v ? ' active' : ''}" data-f="${field}" data-v="${v}">${l}</button>`).join('');
+const sideOpts = (cur, withAuto) => (withAuto ? [['','Automatic']] : []).concat([['top','Top'],['right','Right'],['bottom','Bottom'],['left','Left']])
+  .map(([v,l]) => `<option value="${v}"${(cur || '') === v ? ' selected' : ''}>${l}</option>`).join('');
+
+function renderInspector(){
+  if (!sel){ insp.hidden = true; insp.innerHTML = ''; return; }
+  if (sel.kind === 'node'){
+    const n = nodeById(sel.id); if (!n){ insp.hidden = true; return; }
+    const s = SHAPES[n.type];
+    insp.innerHTML = `
+      <div class="insp-head"><div class="group-title">${esc(s.name)}</div><button class="x" data-act="close" aria-label="Close">×</button></div>
+      <label class="fld"><span>Text</span><textarea data-f="text" rows="2">${esc(n.text)}</textarea></label>
+      <label class="fld"><span>Shape</span><select data-f="type">${typeOptions(n.type)}</select></label>
+      <div class="fld"><span>Style</span><div class="seg c4">${segBtns('tone', [['steel','Steel'],['blue','Blue'],['ink','Ink'],['ghost','Outline']], n.tone)}</div></div>
+      <div class="fld"><span>Text size</span><div class="seg c3">${segBtns('size', [['s','Small'],['m','Medium'],['l','Large']], n.size || 'm')}</div></div>
+      <div class="fld two"><label><span>Width</span><input type="number" min="30" step="10" data-f="w" value="${n.w}"></label><label><span>Height</span><input type="number" min="30" step="10" data-f="h" value="${n.h}"></label></div>
+      <p class="meaning">${esc(s.g.what)} <button class="link" data-act="gloss" data-v="${n.type}">Read more</button></p>
+      <div class="seg c2"><button class="tool" data-act="dup">Duplicate</button><button class="tool danger" data-act="del">Delete</button></div>`;
+  } else {
+    const e = edgeById(sel.id); if (!e){ insp.hidden = true; return; }
+    insp.innerHTML = `
+      <div class="insp-head"><div class="group-title">Connection</div><button class="x" data-act="close" aria-label="Close">×</button></div>
+      <label class="fld"><span>Label</span><input type="text" data-f="label" value="${esc(e.label || '')}" placeholder="Yes, No, 48h..."></label>
+      <div class="fld"><span>Path</span><div class="seg c3">${segBtns('route', [['elbow','Elbow'],['straight','Straight'],['curved','Curved']], e.route || 'elbow')}</div></div>
+      <div class="fld"><span>Line</span><div class="seg c2">${segBtns('dash', [['0','Solid'],['1','Dashed']], e.dash ? '1' : '0')}</div></div>
+      <label class="fld"><span>Arrowheads</span><select data-f="arrows">
+        ${[['end','At the end'],['start','At the start'],['both','Both ends'],['none','None']].map(([v,l]) => `<option value="${v}"${(e.arrows||'end') === v ? ' selected' : ''}>${l}</option>`).join('')}
+      </select></label>
+      <div class="fld two"><label><span>Leaves from</span><select data-f="fromSide">${sideOpts(e.fromSide, true)}</select></label><label><span>Arrives at</span><select data-f="toSide">${sideOpts(e.toSide, true)}</select></label></div>
+      <p class="meaning">Solid lines show the sequence of steps. Dashed lines work well for information links, like a step reading from a database, or for notes.</p>
+      <div class="seg c2"><button class="tool" data-act="rev">Reverse</button><button class="tool danger" data-act="del">Delete</button></div>`;
+  }
+  insp.hidden = false;
+}
+function syncSizeFields(n){
+  const w = insp.querySelector('[data-f="w"]'), h = insp.querySelector('[data-f="h"]');
+  if (w) w.value = n.w; if (h) h.value = n.h;
+}
+let fieldCheck = false;
+insp.addEventListener('focusin', (e) => {
+  const f = e.target.dataset && e.target.dataset.f;
+  if ((f === 'text' || f === 'label') && !fieldCheck){ checkpoint(); fieldCheck = true; }
+});
+insp.addEventListener('focusout', () => { fieldCheck = false; });
+insp.addEventListener('input', (e) => {
+  const f = e.target.dataset.f; if (!sel) return;
+  if (f === 'text'){ nodeById(sel.id).text = e.target.value; render(); }
+  if (f === 'label'){ edgeById(sel.id).label = e.target.value; render(); }
+});
+insp.addEventListener('change', (e) => {
+  const f = e.target.dataset.f; if (!sel || !f) return;
+  if (sel.kind === 'node'){
+    const n = nodeById(sel.id);
+    if (f === 'type'){
+      checkpoint();
+      const s = SHAPES[e.target.value], c = center(n);
+      n.type = e.target.value; n.w = s.w; n.h = s.h; n.x = snapV(c.x - s.w/2); n.y = snapV(c.y - s.h/2);
+      if (s.defTone) n.tone = s.defTone;
+      render(); renderInspector();
+    }
+    if (f === 'w' || f === 'h'){
+      const v = Math.max(30, Math.min(2000, parseInt(e.target.value, 10) || 30));
+      checkpoint(); n[f] = v; e.target.value = v; render();
+    }
+  } else {
+    const ed = edgeById(sel.id);
+    if (f === 'arrows' || f === 'fromSide' || f === 'toSide'){ checkpoint(); ed[f] = e.target.value || null; if (f === 'arrows') ed.arrows = e.target.value; render(); }
+  }
+});
+insp.addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b || !sel) return;
+  const f = b.dataset.f, act = b.dataset.act;
+  if (f){
+    checkpoint();
+    if (sel.kind === 'node'){ nodeById(sel.id)[f] = b.dataset.v; }
+    else { const ed = edgeById(sel.id); if (f === 'dash') ed.dash = b.dataset.v === '1'; else ed[f] = b.dataset.v; }
+    render(); renderInspector(); return;
+  }
+  if (act === 'close'){ sel = null; render(); renderInspector(); }
+  if (act === 'del') deleteSel();
+  if (act === 'dup') duplicateSel();
+  if (act === 'gloss') openGlossary(b.dataset.v);
+  if (act === 'rev'){
+    checkpoint();
+    const ed = edgeById(sel.id);
+    [ed.from, ed.to] = [ed.to, ed.from]; [ed.fromSide, ed.toSide] = [ed.toSide, ed.fromSide];
+    render(); renderInspector();
+  }
+});
+
+/* ---------- Keyboard ---------- */
+document.addEventListener('keydown', (e) => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || $('#glossary').open) return;
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key.toLowerCase() === 'z'){ e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && e.key.toLowerCase() === 'y'){ e.preventDefault(); redo(); return; }
+  if (mod && e.key.toLowerCase() === 'd'){ e.preventDefault(); duplicateSel(); return; }
+  if (e.key === 'Delete' || e.key === 'Backspace'){ if (sel){ e.preventDefault(); deleteSel(); } return; }
+  if (e.key === 'Escape'){ if (sel){ sel = null; render(); renderInspector(); } return; }
+  if (e.key === 'Enter' && sel && sel.kind === 'node'){ e.preventDefault(); openEditor(sel.id); return; }
+  if (sel && sel.kind === 'node' && e.key.startsWith('Arrow')){
+    e.preventDefault();
+    const n = nodeById(sel.id), step = e.shiftKey ? 50 : 10;
+    checkpoint();
+    if (e.key === 'ArrowUp') n.y -= step; if (e.key === 'ArrowDown') n.y += step;
+    if (e.key === 'ArrowLeft') n.x -= step; if (e.key === 'ArrowRight') n.x += step;
+    render();
+  }
+});
+
+/* ---------- Palette ---------- */
+function iconSvg(type, bw, bh, stroke, fill){
+  const s = SHAPES[type];
+  const k = Math.min(bw / s.w, bh / s.h);
+  const w = s.w * k, h = s.h * k;
+  const ox = (bw - w)/2, oy = (bh - h)/2;
+  let out = `<svg viewBox="-2 -2 ${bw+4} ${bh+4}" aria-hidden="true"><g transform="translate(${ox} ${oy})">`;
+  for (const p of s.paths(w, h)){
+    if (p.hit) continue;
+    out += `<path d="${p.d}" fill="${p.fill === false ? 'none' : fill}" stroke="${stroke}" stroke-width="1.2"${s.defTone === 'ghost' ? '' : ''}/>`;
+  }
+  return out + '</g></svg>';
+}
+function buildPalette(){
+  $('#palette').innerHTML = CATS.map(c => `
+    <div class="cat">
+      <div class="sub" style="margin-top:0">${c.name}</div>
+      <div class="shape-grid">
+        ${TYPES.filter(t => SHAPES[t].cat === c.id).map(t => `
+          <button class="tool shape" draggable="true" data-type="${t}" title="${esc(SHAPES[t].g.what)}">
+            ${iconSvg(t, 46, 30, '#5c7f9e', '#1a1e27')}<span>${esc(SHAPES[t].name)}</span>
+          </button>`).join('')}
+      </div>
+    </div>`).join('');
+  $('#palette').addEventListener('click', (e) => { const b = e.target.closest('[data-type]'); if (b) addShape(b.dataset.type); });
+  $('#palette').addEventListener('dragstart', (e) => {
+    const b = e.target.closest('[data-type]'); if (!b) return;
+    e.dataTransfer.setData('text/x-shape', b.dataset.type); e.dataTransfer.effectAllowed = 'copy';
+  });
+}
+
+/* ---------- Glossary ---------- */
+const GENERAL = [
+  ['How to read a flowchart', [
+    '<b>Direction.</b> Read from top to bottom and from left to right. Arrows only make this explicit; a good chart reads correctly even before you look at them.',
+    '<b>One entry point.</b> Start with a single Start symbol. Different endings are fine when the process can finish in different ways, like "Sale closed" and "Lead lost".',
+    '<b>One idea per box.</b> Each symbol holds one action, question or piece of data. Long labels usually hide extra steps.',
+    '<b>Same level of detail.</b> Do not mix "Run the campaign" with "Click the publish button" in the same chart. Move the detail into a subprocess.'
+  ]],
+  ['Lines and arrows', [
+    '<b>Solid line with an arrow</b> shows the sequence: what happens next.',
+    '<b>Dashed line</b> shows a relationship that is not part of the sequence, such as a step reading from a database or a note attached to a step. This is a common convention, so mention it in a legend if your audience may not know it.',
+    '<b>Labeled lines</b> are required after a decision. Every exit needs its answer: Yes, No, or the condition.',
+    '<b>Lines going back up</b> mean a loop or rework. They are valuable in process reviews because they show where effort is repeated.',
+    '<b>Avoid crossing lines.</b> Move shapes or use on-page connectors before letting lines cross.'
+  ]],
+  ['Choosing symbols for business readers', [
+    '<b>Start with the core set.</b> Start/End, Process, Decision, Data, Subprocess and Document cover almost every sales, marketing or operations process.',
+    '<b>Use specialist symbols only when they add meaning.</b> Delay and Manual operation are worth it in process improvement work, because they make waiting time and manual effort visible.',
+    '<b>Be consistent.</b> If one chart uses the database symbol for the CRM, every chart should.',
+    '<b>Color is a bonus, not the message.</b> Use a highlight style for the steps you want to discuss, but the chart should still make sense in black and white.'
+  ]]
+];
+function buildGlossary(){
+  const nav = $('#gNav'), content = $('#gContent');
+  nav.innerHTML = CATS.map(c => `<a href="#g-${c.id}">${c.name}<span class="n">${TYPES.filter(t => SHAPES[t].cat === c.id).length}</span></a>`).join('') +
+    GENERAL.map((g, i) => `<a href="#g-gen${i}">${g[0]}</a>`).join('');
+  content.innerHTML =
+    `<p class="g-intro">A flowchart shows a process as a sequence of symbols connected by lines. Each symbol has a standard meaning, so anyone familiar with the convention can read the chart without explanation. Below you'll find every symbol available in this studio, grouped by type, with what it means, when to use it and a practical tip.</p>` +
+    CATS.map(c => `
+      <section class="g-sec" id="g-${c.id}" data-cat>
+        <div class="group-title">${c.name}</div>
+        <p>${c.intro}</p>
+        ${TYPES.filter(t => SHAPES[t].cat === c.id).map(t => { const s = SHAPES[t]; return `
+          <article class="g-entry" id="g-${t}" data-search="${esc((s.name + ' ' + s.g.aka + ' ' + s.g.what + ' ' + s.g.use).toLowerCase())}">
+            <div class="g-icon">${iconSvg(t, 86, 56, '#5c7f9e', '#1a1e27')}</div>
+            <div>
+              <h3>${esc(s.name)}</h3>
+              <div class="g-aka">Also called: ${esc(s.g.aka)}</div>
+              <p><b>What it means.</b> ${esc(s.g.what)}</p>
+              <p><b>When to use it.</b> ${esc(s.g.use)}</p>
+              <p class="g-tip"><b>Tip.</b> ${esc(s.g.tip)}</p>
+              <button class="tool" data-add="${t}">Add to canvas</button>
+            </div>
+          </article>`; }).join('')}
+      </section>`).join('') +
+    GENERAL.map((g, i) => `
+      <section class="g-sec" id="g-gen${i}" data-general>
+        <div class="group-title">${g[0]}</div>
+        <ul class="g-rules">${g[1].map(li => `<li>${li}</li>`).join('')}</ul>
+      </section>`).join('') +
+    `<p class="g-none" id="gNone" hidden>No symbol matches that search. Try words like "wait", "data" or "decision".</p>`;
+
+  content.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-add]'); if (!b) return;
+    $('#glossary').close(); addShape(b.dataset.add);
+  });
+  nav.addEventListener('click', (e) => {
+    const a = e.target.closest('a'); if (!a) return;
+    e.preventDefault();
+    const t = document.querySelector(a.getAttribute('href'));
+    if (t) t.scrollIntoView({ block:'start' });
+  });
+  $('#gSearch').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    let any = false;
+    content.querySelectorAll('[data-cat]').forEach(sec => {
+      let vis = 0;
+      sec.querySelectorAll('.g-entry').forEach(en => { const m = !q || en.dataset.search.includes(q); en.hidden = !m; if (m) vis++; });
+      sec.hidden = vis === 0; if (vis) any = true;
+    });
+    content.querySelectorAll('[data-general]').forEach(sec => { sec.hidden = !!q; });
+    content.querySelector('.g-intro').hidden = !!q;
+    $('#gNone').hidden = any || !q;
+  });
+}
+function openGlossary(type){
+  const d = $('#glossary');
+  if (!d.open) d.showModal();
+  if (type){
+    $('#gSearch').value = ''; $('#gSearch').dispatchEvent(new Event('input'));
+    const el = document.getElementById('g-' + type);
+    if (el){ el.scrollIntoView({ block:'center' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+  }
+}
+
+/* ---------- Export ---------- */
+function download(blob, name){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function exportLayout(){
+  const b = contentBounds(true);
+  const pad = exp.frame ? 70 : 36;
+  return { b, pad, W:Math.ceil(b.w + pad*2), H:Math.ceil(b.h + pad*2) };
+}
+async function exportPNG(){
+  if (!doc.nodes.length){ toast('Add at least one shape before downloading.', true); return; }
+  try { await document.fonts.ready; } catch(_) {}
+  const pal = palette(exp.palette);
+  const { b, pad, W, H } = exportLayout();
+  const s = exp.scale;
+  const cv = document.createElement('canvas');
+  cv.width = W * s; cv.height = H * s;
+  const ctx = cv.getContext('2d');
+  ctx.scale(s, s);
+  if (!exp.transparent){ ctx.fillStyle = pal.bg; ctx.fillRect(0, 0, W, H); }
+  if (exp.frame) drawFrameCanvas(ctx, W, H, pal);
+  ctx.translate(pad - b.x, pad - b.y);
+  ctx.lineJoin = 'miter';
+  for (const e of doc.edges) drawEdgeCanvas(ctx, e, pal);
+  for (const n of doc.nodes) drawNodeCanvas(ctx, n, pal);
+  cv.toBlob(blob => {
+    if (!blob){ toast('The image is too large to create. Try 1x resolution.', true); return; }
+    download(blob, 'flowchart.png'); toast('PNG downloaded.');
+  }, 'image/png');
+}
+function drawFrameCanvas(ctx, W, H, pal){
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = pal.frameA; ctx.strokeRect(14.5, 14.5, W - 29, H - 29);
+  ctx.strokeStyle = pal.frameB; ctx.strokeRect(20.5, 20.5, W - 41, H - 41);
+  for (const [x, y] of [[15,15],[W-15,15],[15,H-15],[W-15,H-15]]){
+    ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI/4);
+    ctx.fillStyle = pal.diaRing; ctx.fillRect(-8, -8, 16, 16);
+    ctx.fillStyle = pal.diaStroke; ctx.fillRect(-7, -7, 14, 14);
+    ctx.fillStyle = pal.dia; ctx.fillRect(-5, -5, 10, 10);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+function drawNodeCanvas(ctx, n, pal){
+  const s = SHAPES[n.type], t = pal.tones[n.tone] || pal.tones.steel;
+  ctx.save(); ctx.translate(n.x, n.y);
+  ctx.lineWidth = t.w; ctx.strokeStyle = t.s; ctx.setLineDash(t.dash ? t.dash.split(' ').map(Number) : []);
+  for (const p of s.paths(n.w, n.h)){
+    if (p.hit) continue;
+    const path = new Path2D(p.d);
+    if (p.fill !== false && t.f !== 'transparent'){ ctx.fillStyle = t.f; ctx.fill(path); }
+    ctx.stroke(path);
+  }
+  ctx.setLineDash([]);
+  const L = textLayout(n);
+  ctx.fillStyle = t.t; ctx.font = fontStr(L.fs); ctx.textBaseline = 'middle';
+  ctx.textAlign = L.align === 'left' ? 'left' : 'center';
+  L.lines.forEach((ln, i) => ctx.fillText(ln, L.x, L.y + i*L.lh));
+  ctx.restore();
+}
+function drawEdgeCanvas(ctx, e, pal){
+  const g = edgeGeom(e); if (!g) return;
+  ctx.save();
+  ctx.strokeStyle = pal.edge; ctx.fillStyle = pal.edge; ctx.lineWidth = 1.5;
+  ctx.setLineDash(e.dash ? [5,4] : []);
+  ctx.stroke(new Path2D(g.d));
+  ctx.setLineDash([]);
+  for (const a of arrowsOf(e, g)) ctx.fill(new Path2D(a));
+  const lr = labelRect(e, g);
+  if (lr){
+    ctx.fillStyle = pal.label; ctx.fillRect(lr.x, lr.y, lr.w, lr.h);
+    ctx.fillStyle = pal.edgeText; ctx.font = fontStr(lr.fs, 600);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(e.label, g.mid.x, g.mid.y);
+  }
+  ctx.restore();
+}
+function exportSVG(){
+  if (!doc.nodes.length){ toast('Add at least one shape before downloading.', true); return; }
+  const pal = palette(exp.palette);
+  const { b, pad, W, H } = exportLayout();
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  out += `<style>@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&amp;display=swap');</style>`;
+  if (!exp.transparent) out += `<rect width="${W}" height="${H}" fill="${pal.bg}"/>`;
+  if (exp.frame){
+    out += `<rect x="14.5" y="14.5" width="${W-29}" height="${H-29}" fill="none" stroke="${pal.frameA}"/>`;
+    out += `<rect x="20.5" y="20.5" width="${W-41}" height="${H-41}" fill="none" stroke="${pal.frameB}"/>`;
+    for (const [x, y] of [[15,15],[W-15,15],[15,H-15],[W-15,H-15]])
+      out += `<rect x="${x-6}" y="${y-6}" width="12" height="12" transform="rotate(45 ${x} ${y})" fill="${pal.dia}" stroke="${pal.diaStroke}" stroke-width="2"/>`;
+  }
+  out += `<g transform="translate(${pad - b.x} ${pad - b.y})">`;
+  for (const e of doc.edges) out += edgeMarkup(e, pal, false);
+  for (const n of doc.nodes) out += nodeMarkup(n, pal, false);
+  out += '</g></svg>';
+  download(new Blob([out], { type:'image/svg+xml' }), 'flowchart.svg');
+  toast('SVG downloaded.');
+}
+
+/* ---------- Project files ---------- */
+function sanitize(data){
+  if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.edges)) throw new Error('bad');
+  const nodes = data.nodes.filter(n => n && SHAPES[n.type] && typeof n.id === 'string').map(n => ({
+    id:n.id, type:n.type, x:+n.x || 0, y:+n.y || 0, w:Math.max(30, +n.w || SHAPES[n.type].w), h:Math.max(30, +n.h || SHAPES[n.type].h),
+    text:String(n.text ?? ''), tone:['steel','blue','ink','ghost'].includes(n.tone) ? n.tone : 'steel', size:SIZES[n.size] ? n.size : 'm'
+  }));
+  const ids = new Set(nodes.map(n => n.id));
+  const sides = ['top','right','bottom','left'];
+  const edges = data.edges.filter(e => e && ids.has(e.from) && ids.has(e.to)).map(e => ({
+    id:typeof e.id === 'string' ? e.id : uid(), from:e.from, to:e.to,
+    fromSide:sides.includes(e.fromSide) ? e.fromSide : null, toSide:sides.includes(e.toSide) ? e.toSide : null,
+    label:String(e.label ?? ''), route:['elbow','straight','curved'].includes(e.route) ? e.route : 'elbow',
+    arrows:['end','start','both','none'].includes(e.arrows) ? e.arrows : 'end', dash:!!e.dash
+  }));
+  return { nodes, edges };
+}
+$('#btnSaveJson').addEventListener('click', () => {
+  if (!doc.nodes.length){ toast('The canvas is empty, there is nothing to save yet.', true); return; }
+  download(new Blob([JSON.stringify({ app:'flowchart-studio', version:1, ...doc }, null, 2)], { type:'application/json' }), 'flowchart.json');
+  toast('Project saved as flowchart.json.');
+});
+$('#btnOpenJson').addEventListener('click', () => $('#fileIn').click());
+$('#fileIn').addEventListener('change', async (e) => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const data = sanitize(JSON.parse(await f.text()));
+    checkpoint(); doc = data; sel = null; renderInspector(); fit();
+    toast(`Opened ${f.name}.`);
+  } catch(_){ toast('That file is not a Flowchart studio project. Choose a .json file saved from here.', true); }
+});
+
+/* ---------- Example ---------- */
+function exampleDoc(){
+  const N = (id, type, x, y, w, h, text, tone='steel') => ({ id, type, x, y, w, h, text, tone, size:'m' });
+  const E = (from, fromSide, to, toSide, label='', extra={}) => ({ id:uid(), from, fromSide, to, toSide, label, route:'elbow', arrows:'end', dash:false, ...extra });
+  return {
+    nodes:[
+      N('n1','terminator',250,0,140,50,'Lead arrives'),
+      N('n2','io',230,100,180,56,'Form submitted on landing page'),
+      N('n3','process',230,210,180,56,'Enrich and score lead'),
+      N('n4','database',20,200,110,76,'CRM'),
+      N('n5','decision',240,320,160,100,'Matches ideal customer?','blue'),
+      N('n6','manualop',230,480,180,56,'SDR calls within 5 min'),
+      N('n7','document',230,590,180,66,'Proposal sent'),
+      N('n8','terminator',250,710,140,50,'Sale closed'),
+      N('n9','process',490,340,170,60,'Add to nurture sequence'),
+      N('n10','delay',500,460,150,56,'Wait 14 days'),
+      N('n11','annotation',20,470,180,64,'Goal: first contact in under 5 minutes','ghost')
+    ],
+    edges:[
+      E('n1','bottom','n2','top'), E('n2','bottom','n3','top'),
+      E('n4','right','n3','left','',{ dash:true, arrows:'both' }),
+      E('n3','bottom','n5','top'),
+      E('n5','bottom','n6','top','Yes'), E('n5','right','n9','left','No'),
+      E('n9','bottom','n10','top'), E('n10','right','n3','right','Re-score'),
+      E('n6','bottom','n7','top'), E('n7','bottom','n8','top'),
+      E('n11','right','n6','left','',{ dash:true, arrows:'none' })
+    ]
+  };
+}
+function loadExample(){ checkpoint(); doc = exampleDoc(); sel = null; renderInspector(); fit(); toast('Example loaded. Undo with Ctrl+Z if you want your previous canvas back.'); }
+
+/* ---------- Wiring ---------- */
+$('#btnExample').addEventListener('click', loadExample);
+$('#btnExampleEmpty').addEventListener('click', loadExample);
+$('#btnClear').addEventListener('click', () => {
+  if (!doc.nodes.length) return;
+  checkpoint(); doc = { nodes:[], edges:[] }; sel = null; renderInspector(); render();
+  toast('Canvas cleared. Undo with Ctrl+Z.');
+});
+$('#optSnap').addEventListener('change', (e) => { snap = e.target.checked; });
+$('#zIn').addEventListener('click', () => zoomCenter(1.2));
+$('#zOut').addEventListener('click', () => zoomCenter(1/1.2));
+$('#zFit').addEventListener('click', fit);
+$('#bUndo').addEventListener('click', undo);
+$('#bRedo').addEventListener('click', redo);
+$('#btnPng').addEventListener('click', exportPNG);
+$('#btnQuickPng').addEventListener('click', exportPNG);
+$('#btnSvg').addEventListener('click', exportSVG);
+$('#btnGlossary').addEventListener('click', () => openGlossary());
+$('#gClose').addEventListener('click', () => $('#glossary').close());
+$('#glossary').addEventListener('click', (e) => { if (e.target === $('#glossary')) $('#glossary').close(); });
+function segGroup(id, key, parse){
+  $(id).addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    exp[key] = parse ? parse(b.dataset.v) : b.dataset.v;
+    $(id).querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+  });
+}
+segGroup('#expPalette', 'palette');
+segGroup('#expScale', 'scale', Number);
+$('#expFrame').addEventListener('change', (e) => { exp.frame = e.target.checked; });
+$('#expTransparent').addEventListener('change', (e) => { exp.transparent = e.target.checked; });
+window.addEventListener('resize', () => closeEditor(true));
+
+/* ---------- Boot ---------- */
+buildPalette();
+buildGlossary();
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+  if (saved && saved.doc){ doc = sanitize(saved.doc); if (saved.view && isFinite(saved.view.k)) view = { x:+saved.view.x||0, y:+saved.view.y||0, k:Math.min(3, Math.max(.25, +saved.view.k||1)) }; }
+} catch(_) { doc = { nodes:[], edges:[] }; }
+updateUndoButtons();
+render();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+})();
+</script>
+</body>
+</html>
